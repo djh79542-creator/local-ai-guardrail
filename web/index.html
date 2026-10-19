@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>企业级本地 AI 安全网关 · 拦截演示台</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#131a2e; --panel2:#18203a; --line:#243056;
+    --text:#e6ecff; --dim:#8fa0c8; --ok:#3ddc97; --bad:#ff6b81; --warn:#ffc467; --info:#63a9ff;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(180deg,#111a30,#0b1020)}
+  h1{font-size:17px;margin:0;font-weight:650}
+  .sub{color:var(--dim);font-size:12.5px}
+  .pills{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .pill{border:1px solid var(--line);background:var(--panel);border-radius:999px;
+    padding:4px 11px;font-size:12px;color:var(--dim);display:flex;align-items:center;gap:6px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+  main{display:grid;grid-template-columns:300px minmax(0,1fr) 320px;gap:16px;padding:16px 24px 32px;align-items:start}
+  @media (max-width:1180px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+  .card h2{margin:0 0 10px;font-size:13px;letter-spacing:.02em;color:var(--dim);font-weight:600;text-transform:uppercase}
+  .sample{border:1px solid var(--line);background:var(--panel2);border-radius:9px;padding:9px 11px;
+    margin-bottom:8px;cursor:pointer;transition:.15s}
+  .sample:hover{border-color:var(--info);transform:translateX(2px)}
+  .sample.active{border-color:var(--info);background:#1b2748}
+  .sample .t{font-size:13px;font-weight:600}
+  .sample .n{font-size:11.5px;color:var(--dim);margin-top:3px}
+  .tag{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:99px;margin-top:5px}
+  .tag.block{background:rgba(255,107,129,.14);color:var(--bad);border:1px solid rgba(255,107,129,.3)}
+  .tag.mask{background:rgba(255,196,103,.14);color:var(--warn);border:1px solid rgba(255,196,103,.3)}
+  .tag.allow{background:rgba(61,220,151,.14);color:var(--ok);border:1px solid rgba(61,220,151,.3)}
+  textarea{width:100%;min-height:104px;background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:9px;padding:10px;font:13px/1.6 var(--mono);resize:vertical}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  select,input[type=text]{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:7px;padding:6px 8px;font-size:12.5px}
+  label.chk{font-size:12.5px;color:var(--dim);display:flex;gap:5px;align-items:center;cursor:pointer}
+  button{background:var(--info);color:#04102a;border:0;border-radius:8px;padding:9px 18px;
+    font-size:13.5px;font-weight:650;cursor:pointer}
+  button:disabled{opacity:.5;cursor:progress}
+  button.ghost{background:var(--panel2);color:var(--dim);border:1px solid var(--line);padding:6px 12px;font-weight:500}
+  .banner{border-radius:12px;padding:14px 18px;margin-bottom:14px;border:1px solid var(--line);font-size:14.5px}
+  .banner.ok{background:rgba(61,220,151,.09);border-color:rgba(61,220,151,.35)}
+  .banner.bad{background:rgba(255,107,129,.09);border-color:rgba(255,107,129,.4)}
+  .banner.info{background:rgba(99,169,255,.09);border-color:rgba(99,169,255,.35)}
+  .banner b{display:block;font-size:15.5px;margin-bottom:3px}
+  .banner .why{color:var(--dim);font-size:12.5px}
+  .layer{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:12px;overflow:hidden}
+  .layer .head{display:flex;align-items:center;gap:9px;padding:11px 15px;background:var(--panel2);
+    border-bottom:1px solid var(--line);font-weight:600;font-size:13.5px}
+  .layer .body{padding:12px 15px}
+  .num{width:20px;height:20px;border-radius:50%;background:var(--info);color:#04102a;font-size:11.5px;
+    font-weight:700;display:grid;place-items:center}
+  .layer.skipped{opacity:.45}
+  .layer.skipped .num{background:var(--line);color:var(--dim)}
+  .layer.hit .num{background:var(--bad);color:#fff}
+  .ms{margin-left:auto;font-size:11.5px;color:var(--dim);font-family:var(--mono)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 9px}
+  .chip{font-size:11.5px;padding:2px 9px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);font-family:var(--mono)}
+  .chip.bad{color:var(--bad);border-color:rgba(255,107,129,.4)} .chip.ok{color:var(--ok);border-color:rgba(61,220,151,.4)}
+  .chip.warn{color:var(--warn);border-color:rgba(255,196,103,.4)}
+  pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12.5px/1.7 var(--mono);
+    background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .ph{background:rgba(99,169,255,.2);color:#a9cdff;border-radius:4px;padding:0 3px;font-weight:600}
+  .lbl{font-size:11.5px;color:var(--dim);margin:11px 0 5px;text-transform:uppercase;letter-spacing:.03em}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;color:var(--dim);font-weight:500;padding:5px 6px;border-bottom:1px solid var(--line)}
+  td{padding:6px;border-bottom:1px solid #1b2440;font-family:var(--mono);vertical-align:top}
+  .hash{color:var(--dim)} .v-block{color:var(--bad)} .v-allow{color:var(--ok)} .v-dry_run{color:var(--info)}
+  .note{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.7}
+  .empty{color:var(--dim);font-size:12.5px;padding:14px 0;text-align:center}
+  .warnbox{background:rgba(255,196,103,.1);border:1px solid rgba(255,196,103,.35);color:var(--warn);
+    border-radius:8px;padding:9px 11px;font-size:12.5px;margin-top:9px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>企业级本地 AI 安全网关 · 拦截演示台</h1>
+    <div class="sub">本地模型识别拦截 + 远端大模型生成 · 所有内容先过本地安检，安全的才放行</div>
+  </div>
+  <div class="pills" id="pills"><span class="pill">状态加载中…</span></div>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>预置场景</h2>
+      <div id="samples"></div>
+    </div>
+    <div class="card">
+      <h2>自定义请求</h2>
+      <textarea id="text" placeholder="粘贴一段发给 AI 的内容，观察它在哪一层被拦下…"></textarea>
+      <div class="row">
+        <select id="model" title="本地审计模型"></select>
+        <label class="chk"><input type="checkbox" id="callRemote" checked>调用远端大模型</label>
+      </div>
+      <div class="row">
+        <button id="run">运行安检</button>
+        <button class="ghost" id="clear">清空</button>
+      </div>
+      <div class="note">关掉「调用远端大模型」= 演练模式，只做本地安检并显示云端本该收到的文本，不产生任何 API 费用。</div>
+    </div>
+  </section>
+
+  <section>
+    <div id="verdict"><div class="banner info"><b>等待运行</b><span class="why">选择左侧任一场景，看它在三层级联中的哪一层被拦下。</span></div></div>
+    <div id="layers"></div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>审计统计</h2>
+      <div id="stats" class="chips"></div>
+      <div class="note">日志只记录脱敏后请求的 SHA256 指纹，不留原文。</div>
+    </div>
+    <div class="card">
+      <h2>审计日志</h2>
+      <table><thead><tr><th>动作</th><th>结论</th><th>指纹</th></tr></thead><tbody id="logs">
+        <tr><td colspan="3" class="empty">暂无记录</td></tr></tbody></table>
+    </div>
+  </aside>
+</main>
+
+<script>
+const LAYERS = [
+  {key:'dlp', num:1, title:'第 1 层 · 正则 DLP（本地，<5ms）'},
+  {key:'local', num:2, title:'第 2 层 · 本地小模型审计员（断网）'},
+  {key:'remote', num:3, title:'第 3 层 · 远端大模型生成'},
+];
+const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html !== undefined) n.innerHTML = html; return n; };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hl = s => esc(s).replace(/\[([A-Z][A-Z0-9_]*_\d+)\]/g, '<span class="ph">[$1]</span>');
+
+let SAMPLES = [];
+
+async function loadSamples(){
+  SAMPLES = await (await fetch('/api/samples')).json();
+  const box = document.getElementById('samples');
+  box.innerHTML = '';
+  const label = {block_regex:['正则拦截','block'], block_local_model:['模型拦截','block'], mask_allow:['脱敏放行','mask'], allow:['直接放行','allow']};
+  SAMPLES.forEach(s => {
+    const d = el('div','sample');
+    d.innerHTML = `<div class="t">${esc(s.title)}</div><div class="n">${esc(s.note)}</div>
+      <span class="tag ${label[s.expect][1]}">${label[s.expect][0]}</span>`;
+    d.onclick = () => {
+      document.querySelectorAll('.sample').forEach(x=>x.classList.remove('active'));
+      d.classList.add('active');
+      document.getElementById('text').value = s.text;
+      run();
+    };
+    box.appendChild(d);
+  });
+}
+
+async function loadModels(){
+  const sel = document.getElementById('model');
+  const data = await (await fetch('/api/models')).json();
+  sel.innerHTML = '';
+  (data.models.length ? data.models : [data.default]).forEach(m => {
+    const o = el('option'); o.value = m; o.textContent = '本地模型 ' + m;
+    if (m === data.default) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+async function loadStatus(){
+  const s = await (await fetch('/api/status')).json();
+  const pills = document.getElementById('pills');
+  pills.innerHTML = '';
+  const add = (txt, on) => pills.appendChild(el('span','pill',`<span class="dot ${on?'on':'off'}"></span>${txt}`));
+  add('本地模型 ' + s.local_model.model + (s.local_model.online ? ' 在线' : ' 离线'), s.local_model.online);
+  add('远端 ' + s.remote.model + (s.remote.configured ? ' 已配置' : ' 缺 Key'), s.remote.configured);
+  add(`累计 ${s.audit.total} 请求 / 拦截 ${s.audit.blocked}`, true);
+}
+
+async function loadAudit(){
+  const a = await (await fetch('/api/audit?limit=12')).json();
+  document.getElementById('stats').innerHTML =
+    `<span class="chip">总 ${a.stats.total}</span><span class="chip bad">拦截 ${a.stats.blocked}</span>
+     <span class="chip ok">放行 ${a.stats.allowed}</span>`;
+  const tb = document.getElementById('logs');
+  tb.innerHTML = '';
+  if (!a.logs.length) { tb.innerHTML = '<tr><td colspan="3" class="empty">暂无记录</td></tr>'; return; }
+  a.logs.forEach(l => {
+    const r = el('tr');
+    const reasons = [l.dlp_findings.map(f => f.rule)[0], l.local_audit.reason].filter(Boolean)
+      .map(s => s.length > 24 ? s.slice(0, 24) + '…' : s).join(' · ');
+    r.innerHTML = `<td>${l.action}<div style="color:var(--dim);font-family:inherit;font-size:11px">${esc(reasons)}</div></td>
+      <td class="v-${l.verdict}">${l.verdict}</td><td class="hash">${l.request_hash.slice(0,10)}…</td>`;
+    tb.appendChild(r);
+  });
+}
+
+function layerShell(def, state){
+  const box = el('div', 'layer' + (state === 'skipped' ? ' skipped' : '') + (state === 'hit' ? ' hit' : ''));
+  const head = el('div','head',`<span class="num">${def.num}</span>${def.title}`);
+  box.appendChild(head);
+  box._head = head;
+  const body = el('div','body');
+  box.appendChild(body);
+  box._body = body;
+  return box;
+}
+
+function render(t, resp){
+  const host = document.getElementById('layers');
+  host.innerHTML = '';
+  const blockedBy = t.blocked_by;
+  const stoppedAt = {dlp_regex:1, local_model:2, remote_unconfigured:3, remote_error:3}[blockedBy] || 99;
+
+  // 第 1 层
+  const L1 = layerShell(LAYERS[0], blockedBy === 'dlp_regex' ? 'hit' : 'done');
+  L1._head.appendChild(el('span','ms', t.dlp_ms + ' ms'));
+  L1._body.innerHTML = t.findings.length
+    ? `<div class="chips">${t.findings.map(f=>`<span class="chip ${f.action==='block'?'bad':'warn'}">${f.action==='block'?'拦截':'脱敏'} · ${esc(f.rule)}</span>`).join('')}</div>`
+    : '<div class="chips"><span class="chip ok">无敏感特征命中</span></div>';
+  const stopHere = blockedBy === 'dlp_regex';
+  L1._body.innerHTML += `<div class="lbl">${stopHere ? '以下内容被就地拦下，从未发往云端' : '脱敏后文本（占位符即云端所见）'}</div><pre>${hl(t.masked_text)}</pre>`;
+  host.appendChild(L1);
+
+  // 第 2 层
+  const L2 = layerShell(LAYERS[1], stoppedAt <= 1 ? 'skipped' : (blockedBy === 'local_model' ? 'hit' : 'done'));
+  if (stoppedAt > 1 && Object.keys(t.local).length){
+    const l = t.local;
+    L2._head.appendChild(el('span','ms', l.latency_ms + ' ms · ' + l.model));
+    L2._body.innerHTML = `<div class="chips">
+      <span class="chip ${l.verdict==='block'?'bad':'ok'}">verdict: ${l.verdict}</span>
+      <span class="chip ${l.attack==='none'?'ok':'bad'}">attack: ${l.attack}</span>
+      <span class="chip">intent: ${l.intent}</span>
+      <span class="chip ${l.risk==='high'?'bad':l.risk==='medium'?'warn':'ok'}">risk: ${l.risk}</span></div>
+      <div class="lbl">审计员给出的理由</div><pre>${esc(l.reason || '（模型未给出理由）')}</pre>`;
+    if (l.degraded) L2._body.innerHTML += `<div class="warnbox">模型输出不可用或不可解析，已按降级策略处理（verdict=${l.verdict}）。此时语义防线失效，只剩第 1 层正则兜底——生产环境建议把 AUDITOR_FAIL_MODE 设为 block。</div>`;
+  } else if (stoppedAt <= 1){
+    L2._body.innerHTML = '<div class="empty">未执行：请求已在第 1 层拦下，本地模型无需参与。</div>';
+  }
+  host.appendChild(L2);
+
+  // 第 3 层
+  const L3 = layerShell(LAYERS[2], stoppedAt <= 2 ? 'skipped' : 'done');
+  if (stoppedAt <= 2){
+    L3._body.innerHTML = `<div class="empty">未执行：没有任何字节离开本机。<br>云端既没收到明文，也没收到脱敏文本。</div>`;
+  } else if (resp.dry_run){
+    L3._body.innerHTML = `<div class="empty" style="text-align:left;color:var(--info)">演练模式：安检已通过，未向云端发起调用。<br>上面第 1 层的脱敏文本就是真实请求中云端唯一能看到的内容。</div>`;
+  } else if (Object.keys(t.remote).length){
+    L3._head.appendChild(el('span','ms', `${t.remote.latency_ms} ms · ${t.remote.total_tokens} tokens`));
+    L3._body.innerHTML = `<div class="chips"><span class="chip ok">${esc(t.remote.model)}</span>
+      <span class="chip">prompt ${t.remote.prompt_tokens}</span><span class="chip">completion ${t.remote.completion_tokens}</span></div>
+      <div class="lbl">云端返回 → 网关内还原占位符 → 交给用户</div><pre>${esc(resp.answer)}</pre>`;
+  } else {
+    L3._body.innerHTML = `<div class="empty">未执行：${esc(resp.error || '远端未配置')}</div>`;
+  }
+  host.appendChild(L3);
+}
+
+async function run(){
+  const text = document.getElementById('text').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('run');
+  btn.disabled = true; btn.textContent = '安检中…';
+  const v = document.getElementById('verdict');
+  v.innerHTML = '<div class="banner info"><b>运行中</b><span class="why">第 1 层正则 → 第 2 层本地模型 → 第 3 层远端大模型</span></div>';
+  try{
+    const body = {
+      text,
+      call_remote: document.getElementById('callRemote').checked,
+      local_model: document.getElementById('model').value,
+    };
+    const resp = await (await fetch('/api/demo/check', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})).json();
+    const t = resp.trace;
+    if (t.verdict === 'block'){
+      const names = {dlp_regex:'第 1 层正则 DLP', local_model:'第 2 层本地模型', remote_unconfigured:'远端未配置', remote_error:'远端调用失败'};
+      v.innerHTML = `<div class="banner bad"><b>🚫 已拦截 · HTTP 403 · ${t.total_ms} ms</b>
+        <span class="why">${names[t.blocked_by] || t.blocked_by} 拦下了这次请求：${esc(resp.error || '')}</span></div>`;
+    } else if (resp.dry_run){
+      v.innerHTML = `<div class="banner info"><b>✅ 安检通过 · 演练模式未调用云端 · ${t.total_ms} ms</b>
+        <span class="why">共 ${t.masked_count} 处敏感值被替换为占位符；若真实发起请求，云端只会看到下面这段脱敏文本。</span></div>`;
+    } else {
+      v.innerHTML = `<div class="banner ok"><b>✅ 放行 · ${t.total_ms} ms</b>
+        <span class="why">${t.masked_count ? `已脱敏 ${t.masked_count} 处敏感值，响应侧在网关内还原。` : '三层全绿，未触发任何规则。'}</span></div>`;
+    }
+    if (resp.note) v.innerHTML += `<div class="warnbox">${esc(resp.note)}</div>`;
+    render(t, resp);
+    loadAudit(); loadStatus();
+  }catch(e){
+    v.innerHTML = `<div class="banner bad"><b>运行失败</b><span class="why">${esc(e.message)}</span></div>`;
+  }finally{
+    btn.disabled = false; btn.textContent = '运行安检';
+  }
+}
+
+document.getElementById('run').onclick = run;
+document.getElementById('clear').onclick = () => {
+  document.getElementById('text').value = '';
+  document.querySelectorAll('.sample').forEach(x=>x.classList.remove('active'));
+};
+(async () => {
+  await Promise.all([loadSamples(), loadModels(), loadStatus(), loadAudit()]);
+})();
+</script>
+</body>
+</html>
